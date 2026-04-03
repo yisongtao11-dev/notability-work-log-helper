@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="theme-color" content="#f3ebdc" />
+  <title>Notability 工作记录助手</title>
+  <style>
+    :root {
+      --bg: linear-gradient(135deg, #f7f3ea 0%, #e8efe8 100%);
+      --panel: rgba(255, 252, 246, 0.92);
+      --line: #d9cdb7;
+      --text: #2f2a24;
+      --muted: #6a6257;
+      --accent: #b5653b;
+      --accent-dark: #8f4f2e;
+      --success: #2f7d5b;
+      --shadow: 0 18px 45px rgba(78, 61, 42, 0.14);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .wrap {
+      width: min(960px, 100%);
+      background: var(--panel);
+      border: 1px solid rgba(217, 205, 183, 0.9);
+      border-radius: 28px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      backdrop-filter: blur(8px);
+    }
+
+    .hero {
+      padding: 32px 32px 20px;
+      background:
+        radial-gradient(circle at top right, rgba(181, 101, 59, 0.18), transparent 28%),
+        linear-gradient(180deg, rgba(255, 248, 235, 0.95), rgba(255, 252, 246, 0.78));
+      border-bottom: 1px solid rgba(217, 205, 183, 0.8);
+    }
+
+    h1 {
+      margin: 0 0 12px;
+      font-size: clamp(28px, 4vw, 40px);
+      line-height: 1.1;
+      letter-spacing: 0.02em;
+    }
+
+    .sub {
+      margin: 0;
+      font-size: 15px;
+      line-height: 1.7;
+      color: var(--muted);
+      max-width: 700px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1.05fr 0.95fr;
+      gap: 0;
+    }
+
+    .panel {
+      padding: 28px 32px 32px;
+    }
+
+    .panel + .panel {
+      border-left: 1px solid rgba(217, 205, 183, 0.8);
+      background: rgba(250, 246, 239, 0.72);
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    textarea,
+    select,
+    input {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 14px 16px;
+      font-size: 15px;
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.88);
+      outline: none;
+      transition: border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    textarea:focus,
+    select:focus,
+    input:focus {
+      border-color: rgba(181, 101, 59, 0.88);
+      box-shadow: 0 0 0 4px rgba(181, 101, 59, 0.12);
+    }
+
+    textarea {
+      min-height: 140px;
+      resize: vertical;
+      line-height: 1.7;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-top: 16px;
+    }
+
+    .actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 18px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 999px;
+      padding: 12px 18px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.18s ease, opacity 0.18s ease, background 0.18s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+    }
+
+    .primary {
+      background: var(--accent);
+      color: #fffaf4;
+    }
+
+    .primary:hover {
+      background: var(--accent-dark);
+    }
+
+    .ghost {
+      background: rgba(181, 101, 59, 0.12);
+      color: var(--accent-dark);
+    }
+
+    .secondary {
+      background: rgba(47, 125, 91, 0.12);
+      color: var(--success);
+    }
+
+    .helper {
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    .examples {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .chip {
+      border: 1px solid rgba(181, 101, 59, 0.26);
+      color: var(--accent-dark);
+      background: rgba(255, 251, 244, 0.9);
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    .output {
+      white-space: pre-wrap;
+      min-height: 320px;
+      line-height: 1.9;
+      border: 1px dashed rgba(181, 101, 59, 0.35);
+      border-radius: 18px;
+      padding: 18px;
+      background: rgba(255, 255, 255, 0.88);
+      font-size: 15px;
+    }
+
+    .status {
+      margin-top: 14px;
+      font-size: 13px;
+      color: var(--success);
+      min-height: 20px;
+    }
+
+    .mobile-note {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 16px;
+      padding: 12px 14px;
+      border-radius: 16px;
+      background: rgba(47, 125, 91, 0.08);
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    .mobile-note strong {
+      color: var(--success);
+      font-size: 14px;
+    }
+
+    .tip {
+      margin-top: 18px;
+      padding: 14px 16px;
+      border-radius: 16px;
+      background: rgba(181, 101, 59, 0.08);
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    @media (max-width: 860px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+
+      .panel + .panel {
+        border-left: 0;
+        border-top: 1px solid rgba(217, 205, 183, 0.8);
+      }
+    }
+
+    @media (max-width: 600px) {
+      body {
+        padding: 10px;
+        align-items: stretch;
+      }
+
+      .hero,
+      .panel {
+        padding-left: 18px;
+        padding-right: 18px;
+      }
+
+      .row {
+        grid-template-columns: 1fr;
+      }
+
+       .wrap {
+        width: 100%;
+        border-radius: 22px;
+      }
+
+      .actions {
+        flex-direction: column;
+      }
+
+      button,
+      .chip {
+        width: 100%;
+        min-height: 48px;
+        font-size: 15px;
+      }
+
+      .examples {
+        display: grid;
+        grid-template-columns: 1fr;
+      }
+
+      .output {
+        min-height: 240px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="hero">
+      <h1>Notability 工作记录助手</h1>
+      <p class="sub">输入一句模糊事项，比如“张三入职”“提交房租报销”“和客户沟通合同”，它会自动整理成更规范的工作记录，并附上当前时间戳，方便你直接粘贴到 Notability。</p>
+    </section>
+
+    <section class="grid">
+      <div class="panel">
+        <label for="rawInput">模糊事项</label>
+        <textarea id="rawInput" placeholder="例如：张三入职&#10;或者：跟财务确认4月报销材料&#10;或者：和客户沟通合同条款修改"></textarea>
+
+        <div class="row">
+          <div>
+            <label for="tone">记录风格</label>
+            <select id="tone">
+              <option value="standard">标准规范</option>
+              <option value="brief">简洁记录</option>
+              <option value="detailed">稍详细</option>
+            </select>
+          </div>
+          <div>
+            <label for="prefix">记录前缀</label>
+            <input id="prefix" value="工作记录" placeholder="例如：今日工作 / 人事事项 / 项目跟进" />
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="primary" id="generateBtn">生成记录</button>
+          <button class="ghost" id="clearBtn">清空</button>
+        </div>
+
+        <div class="helper">建议输入“对象 + 事项”，比如“李四入职”“整理招标材料”“和供应商确认付款时间”，这样生成内容会更自然。</div>
+
+        <div class="mobile-note">
+          <strong>iPhone</strong>
+          <span>在 Safari 打开后，可用“分享”里的“添加到主屏幕”，以后就像小 App 一样直接打开。</span>
+        </div>
+
+        <div class="examples">
+          <button class="chip" data-example="张三入职">张三入职</button>
+          <button class="chip" data-example="提交4月房租报销">提交4月房租报销</button>
+          <button class="chip" data-example="和客户沟通合同修改">和客户沟通合同修改</button>
+          <button class="chip" data-example="整理投标资料并发送">整理投标资料并发送</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <label for="result">生成结果</label>
+        <div id="result" class="output">等待生成...</div>
+
+        <div class="actions">
+          <button class="secondary" id="copyBtn">复制到剪贴板</button>
+          <button class="ghost" id="shareBtn">调用系统分享</button>
+        </div>
+
+        <div id="status" class="status"></div>
+
+        <div class="tip">
+          使用方式：先在这里生成并复制，再切到 Notability 粘贴即可。<br />
+          如果你后面想继续升级，我们还可以把它改成“输入后自动追加到本地日报文件”或者“配合 macOS 快捷指令一键粘贴到 Notability”。
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const rawInput = document.getElementById('rawInput');
+    const tone = document.getElementById('tone');
+    const prefix = document.getElementById('prefix');
+    const result = document.getElementById('result');
+    const status = document.getElementById('status');
+    const storageKey = 'notability-work-log-helper';
+
+    function nowStamp() {
+      const now = new Date();
+      const pad = (n) => String(n).padStart(2, '0');
+      return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+    }
+
+    function cleanText(text) {
+      return text.replace(/[。；;，,]+$/g, '').trim();
+    }
+
+    function splitTargetAndAction(text) {
+      const verbFirst = text.match(/^(入职|离职|转正|报销|付款|汇报|提交|审批|审核|整理|沟通|跟进|签约|面试|培训|通知|登记|归档|发放|确认)(.*)$/);
+      if (verbFirst) {
+        return {
+          mode: 'verb-first',
+          target: '',
+          verb: verbFirst[1],
+          rest: cleanText(verbFirst[2])
+        };
+      }
+
+      const targetFirst = text.match(/^(.{1,12}?)(入职|离职|转正|报销|付款|汇报|提交|审批|审核|整理|沟通|跟进|签约|面试|培训|通知|登记|归档|发放|确认)(.*)$/);
+      if (targetFirst) {
+        return {
+          mode: 'target-first',
+          target: cleanText(targetFirst[1]),
+          verb: targetFirst[2],
+          rest: cleanText(targetFirst[3])
+        };
+      }
+
+      return null;
+    }
+
+    function joinText(targetText, restText) {
+      return cleanText(`${targetText}${restText}`);
+    }
+
+    function buildSentence(text) {
+      const cleaned = cleanText(text);
+      const parsed = splitTargetAndAction(cleaned);
+
+      if (!parsed) {
+        return `已完成“${cleaned}”相关事项记录，并同步留存工作处理信息。`;
+      }
+
+      const { target, verb, rest } = parsed;
+      const suffix = rest ? `${rest}相关` : '';
+      const targetText = target ? `${target}` : '';
+      const combinedText = joinText(targetText, rest);
+      const subjectText = combinedText || '相关';
+
+      const templates = {
+        入职: `已跟进${subjectText}入职事项，完成入职相关信息登记及工作记录留存。`,
+        离职: `已跟进${subjectText}离职事项，完成离职相关信息整理及工作记录留存。`,
+        转正: `已跟进${subjectText}转正事项，完成相关流程记录与信息留存。`,
+        报销: `已处理${subjectText}报销事项，并完成报销信息记录。`,
+        付款: `已跟进${subjectText}付款事项，并同步记录处理时间及进展情况。`,
+        汇报: `已完成${subjectText}汇报事项，并留存相关工作记录。`,
+        提交: `已完成${subjectText}提交，并记录提交时间及处理情况。`,
+        审批: `已跟进${subjectText}审批事项，并完成过程记录。`,
+        审核: `已完成${subjectText}审核处理，并同步留存工作记录。`,
+        整理: `已完成${subjectText}整理，并做好相关记录留存。`,
+        沟通: `已就${subjectText}事项完成沟通，并记录沟通时间及主要内容。`,
+        跟进: `已持续跟进${subjectText}事项，并同步记录当前进展。`,
+        签约: `已跟进${subjectText}签约事项，并留存相关处理记录。`,
+        面试: `已完成${subjectText}面试相关安排及记录留存。`,
+        培训: `已完成${subjectText}培训事项记录，并同步留存时间信息。`,
+        通知: `已完成${subjectText}通知传达，并记录通知时间及处理情况。`,
+        登记: `已完成${subjectText}登记事项，并做好信息留存。`,
+        归档: `已完成${subjectText}归档，并同步留存处理时间。`,
+        发放: `已完成${subjectText}发放事项记录，并做好信息留存。`,
+        确认: `已完成${targetText ? `${targetText}就${rest || '相关事项'}` : `${subjectText}`}确认，并记录确认时间及结果。`
+      };
+
+      return templates[verb] || `已完成${subjectText}${suffix}事项处理，并同步记录相关工作内容。`;
+    }
+
+    function expandByTone(baseText, raw, selectedTone) {
+      if (selectedTone === 'brief') {
+        return baseText;
+      }
+
+      if (selectedTone === 'detailed') {
+        return `${baseText}后续如有进一步进展，将继续补充更新。`;
+      }
+
+      return `${baseText}相关内容已按工作需要及时登记，便于后续查阅与跟进。`;
+    }
+
+    function saveFormState() {
+      const payload = {
+        rawInput: rawInput.value,
+        tone: tone.value,
+        prefix: prefix.value,
+        result: result.textContent
+      };
+      localStorage.setItem(storageKey, JSON.stringify(payload));
+    }
+
+    function loadFormState() {
+      try {
+        const raw = localStorage.getItem(storageKey);
+        if (!raw) return;
+        const payload = JSON.parse(raw);
+        rawInput.value = payload.rawInput || '';
+        tone.value = payload.tone || 'standard';
+        prefix.value = payload.prefix || '工作记录';
+        if (payload.result) {
+          result.textContent = payload.result;
+          status.textContent = '已恢复上次内容，可继续使用。';
+        }
+      } catch (err) {
+        localStorage.removeItem(storageKey);
+      }
+    }
+
+    function generate() {
+      const raw = cleanText(rawInput.value);
+      if (!raw) {
+        result.textContent = '请先输入需要记录的事项。';
+        status.textContent = '尚未生成内容';
+        saveFormState();
+        return;
+      }
+
+      const stamp = nowStamp();
+      const title = cleanText(prefix.value) || '工作记录';
+      const sentence = buildSentence(raw);
+      const finalText = `[${stamp}] ${title}\n${expandByTone(sentence, raw, tone.value)}`;
+
+      result.textContent = finalText;
+      status.textContent = '已生成，可直接复制到 Notability。';
+      saveFormState();
+    }
+
+    async function copyResult() {
+      const text = result.textContent;
+      if (!text || text === '等待生成...' || text === '请先输入需要记录的事项。') {
+        status.textContent = '请先生成记录，再复制。';
+        return;
+      }
+
+      try {
+        await navigator.clipboard.writeText(text);
+        status.textContent = '已复制到剪贴板，切到 Notability 后直接粘贴即可。';
+      } catch (err) {
+        const selection = window.getSelection();
+        const range = document.createRange();
+        range.selectNodeContents(result);
+        selection.removeAllRanges();
+        selection.addRange(range);
+        status.textContent = '浏览器未允许自动复制，已帮你选中文本，可手动复制。';
+      }
+    }
+
+    async function shareResult() {
+      const text = result.textContent;
+      if (!text || text === '等待生成...' || text === '请先输入需要记录的事项。') {
+        status.textContent = '请先生成记录，再分享。';
+        return;
+      }
+
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            title: cleanText(prefix.value) || '工作记录',
+            text
+          });
+          status.textContent = '已调用系统分享，你可以发到备忘录或其他应用。';
+          return;
+        } catch (err) {
+          if (err && err.name === 'AbortError') {
+            status.textContent = '已取消分享。';
+            return;
+          }
+        }
+      }
+
+      await copyResult();
+    }
+
+    document.getElementById('generateBtn').addEventListener('click', generate);
+    document.getElementById('copyBtn').addEventListener('click', copyResult);
+    document.getElementById('shareBtn').addEventListener('click', shareResult);
+    document.getElementById('clearBtn').addEventListener('click', () => {
+      rawInput.value = '';
+      tone.value = 'standard';
+      prefix.value = '工作记录';
+      result.textContent = '等待生成...';
+      status.textContent = '';
+      localStorage.removeItem(storageKey);
+    });
+
+    document.querySelectorAll('.chip').forEach((chip) => {
+      chip.addEventListener('click', () => {
+        rawInput.value = chip.dataset.example;
+        generate();
+      });
+    });
+
+    [rawInput, tone, prefix].forEach((node) => {
+      node.addEventListener('input', saveFormState);
+      node.addEventListener('change', saveFormState);
+    });
+
+    rawInput.addEventListener('keydown', (event) => {
+      if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+        generate();
+      }
+    });
+
+    loadFormState();
+  </script>
+</body>
+</html>
