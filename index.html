@@ -226,6 +226,42 @@
       font-size: 14px;
     }
 
+    .config-box {
+      margin-top: 16px;
+      padding: 16px;
+      border: 1px solid rgba(217, 205, 183, 0.9);
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.62);
+    }
+
+    .config-title {
+      margin: 0 0 10px;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .config-note {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.7;
+    }
+
+    .toggle {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 12px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .toggle input {
+      width: 18px;
+      height: 18px;
+      margin: 0;
+    }
+
     .tip {
       margin-top: 18px;
       padding: 14px 16px;
@@ -329,6 +365,33 @@
           <span>在 Safari 打开后，可用“分享”里的“添加到主屏幕”，以后就像小 App 一样直接打开。</span>
         </div>
 
+        <div class="config-box">
+          <p class="config-title">AI 设置（可选）</p>
+
+          <div class="row">
+            <div>
+              <label for="apiUrl">接口地址</label>
+              <input id="apiUrl" placeholder="例如：https://你的接口地址/v1/chat/completions" />
+            </div>
+            <div>
+              <label for="aiModel">模型名称</label>
+              <input id="aiModel" placeholder="例如：gpt-4.1-mini / 你的模型名" />
+            </div>
+          </div>
+
+          <div style="margin-top: 14px;">
+            <label for="apiKey">API Key</label>
+            <input id="apiKey" type="password" placeholder="仅保存在当前浏览器本地，不会自动上传到别处" />
+          </div>
+
+          <label class="toggle" for="useAi">
+            <input id="useAi" type="checkbox" />
+            <span>生成记录时优先使用 AI 润色</span>
+          </label>
+
+          <div class="config-note">说明：这个网页会直接从你的浏览器调用 AI 接口，所以更适合填写你自己的 API。未配置时，仍会使用本地规则生成。</div>
+        </div>
+
         <div class="examples">
           <button class="chip" data-example="张三入职">张三入职</button>
           <button class="chip" data-example="提交4月房租报销">提交4月房租报销</button>
@@ -362,6 +425,10 @@
     const prefix = document.getElementById('prefix');
     const result = document.getElementById('result');
     const status = document.getElementById('status');
+    const apiUrl = document.getElementById('apiUrl');
+    const aiModel = document.getElementById('aiModel');
+    const apiKey = document.getElementById('apiKey');
+    const useAi = document.getElementById('useAi');
     const storageKey = 'notability-work-log-helper';
 
     function nowStamp() {
@@ -603,11 +670,82 @@
       return `${baseText}相关内容已按工作需要及时登记，便于后续查阅与跟进。`;
     }
 
+    function buildPrompt(raw, selectedTone, title) {
+      const toneMap = {
+        standard: '正式、规范、适合工作留痕',
+        brief: '简洁、明确、保留关键动作',
+        detailed: '正式、稍详细、便于后续追溯'
+      };
+
+      return [
+        '你是一个行政、人事、办公室记录助手。',
+        '请把用户输入的一句口语化工作事项，整理成适合写入工作笔记的规范记录。',
+        '要求：',
+        '1. 保留真实动作，不要编造未发生的细节。',
+        '2. 用中文输出，1句到2句即可。',
+        '3. 语气正式、自然，适合 Notability 工作记录。',
+        `4. 风格要求：${toneMap[selectedTone] || toneMap.standard}。`,
+        `5. 记录标题是“${title}”，但你只需要输出正文，不要重复标题和时间戳。`,
+        `用户输入：${raw}`
+      ].join('\n');
+    }
+
+    async function generateWithAi(raw, selectedTone, title, stamp) {
+      const endpoint = cleanText(apiUrl.value);
+      const model = cleanText(aiModel.value);
+      const key = apiKey.value.trim();
+
+      if (!endpoint || !model || !key) {
+        throw new Error('AI 配置不完整，请填写接口地址、模型名称和 API Key。');
+      }
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${key}`
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            {
+              role: 'user',
+              content: buildPrompt(raw, selectedTone, title)
+            }
+          ],
+          temperature: 0.3
+        })
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`AI 接口调用失败：${response.status} ${errText.slice(0, 120)}`);
+      }
+
+      const data = await response.json();
+      const content =
+        data?.choices?.[0]?.message?.content ||
+        data?.choices?.[0]?.text ||
+        data?.output?.[0]?.content?.[0]?.text ||
+        '';
+
+      const polished = cleanText(String(content));
+      if (!polished) {
+        throw new Error('AI 未返回可用内容。');
+      }
+
+      return `[${stamp}] ${title}\n${polished}`;
+    }
+
     function saveFormState() {
       const payload = {
         rawInput: rawInput.value,
         tone: tone.value,
         prefix: prefix.value,
+        apiUrl: apiUrl.value,
+        aiModel: aiModel.value,
+        apiKey: apiKey.value,
+        useAi: useAi.checked,
         result: result.textContent
       };
       localStorage.setItem(storageKey, JSON.stringify(payload));
@@ -621,6 +759,10 @@
         rawInput.value = payload.rawInput || '';
         tone.value = payload.tone || 'standard';
         prefix.value = payload.prefix || '工作记录';
+        apiUrl.value = payload.apiUrl || '';
+        aiModel.value = payload.aiModel || '';
+        apiKey.value = payload.apiKey || '';
+        useAi.checked = Boolean(payload.useAi);
         if (payload.result) {
           result.textContent = payload.result;
           status.textContent = '已恢复上次内容，可继续使用。';
@@ -630,7 +772,7 @@
       }
     }
 
-    function generate() {
+    async function generate() {
       const raw = cleanText(rawInput.value);
       if (!raw) {
         result.textContent = '请先输入需要记录的事项。';
@@ -641,11 +783,23 @@
 
       const stamp = nowStamp();
       const title = cleanText(prefix.value) || '工作记录';
-      const sentence = buildSentence(raw);
-      const finalText = `[${stamp}] ${title}\n${expandByTone(sentence, raw, tone.value)}`;
+      status.textContent = useAi.checked ? '正在调用 AI 润色...' : '正在生成记录...';
 
-      result.textContent = finalText;
-      status.textContent = '已生成，可直接复制到 Notability。';
+      try {
+        if (useAi.checked) {
+          result.textContent = await generateWithAi(raw, tone.value, title, stamp);
+          status.textContent = '已通过 AI 生成，可直接复制到 Notability。';
+        } else {
+          const sentence = buildSentence(raw);
+          result.textContent = `[${stamp}] ${title}\n${expandByTone(sentence, raw, tone.value)}`;
+          status.textContent = '已生成，可直接复制到 Notability。';
+        }
+      } catch (err) {
+        const sentence = buildSentence(raw);
+        result.textContent = `[${stamp}] ${title}\n${expandByTone(sentence, raw, tone.value)}`;
+        status.textContent = `AI 暂不可用，已自动切回本地规则生成。${err.message ? ` ${err.message}` : ''}`;
+      }
+
       saveFormState();
     }
 
@@ -702,6 +856,10 @@
       rawInput.value = '';
       tone.value = 'standard';
       prefix.value = '工作记录';
+      apiUrl.value = '';
+      aiModel.value = '';
+      apiKey.value = '';
+      useAi.checked = false;
       result.textContent = '等待生成...';
       status.textContent = '';
       localStorage.removeItem(storageKey);
@@ -714,7 +872,7 @@
       });
     });
 
-    [rawInput, tone, prefix].forEach((node) => {
+    [rawInput, tone, prefix, apiUrl, aiModel, apiKey, useAi].forEach((node) => {
       node.addEventListener('input', saveFormState);
       node.addEventListener('change', saveFormState);
     });
