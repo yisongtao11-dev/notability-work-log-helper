@@ -402,8 +402,157 @@
       return cleanText(`${targetText}${restText}`);
     }
 
+    function normalizePerson(text) {
+      return cleanText(
+        text
+          .replace(/^(给|帮|为)/, '')
+          .replace(/(准备|安排|处理|配置|安装|装机|装|发放|领取|申请).*$/, '')
+      );
+    }
+
+    function buildEquipmentSentence(text) {
+      const cleaned = cleanText(text);
+      const hasDevice = /(电脑|笔记本|办公电脑|办公设备|设备|电脑设备)/.test(cleaned);
+      const hasAction = /(准备|安排|处理|配置|安装|装机|装|发放|领取|申请)/.test(cleaned);
+      if (!hasDevice || !hasAction) {
+        return null;
+      }
+
+      const personMatch = cleaned.match(/(?:给|帮|为)(.{1,12}?)(?:准备|安排|处理|配置|安装|装机|装|发放|领取|申请)/);
+      const person = personMatch ? normalizePerson(personMatch[1]) : '';
+      const isOnboarding = /入职/.test(cleaned);
+      const hasSetup = /(安装|装机|装|配置)/.test(cleaned);
+      const hasDelivery = /(发放|领取)/.test(cleaned);
+
+      if (person && isOnboarding && hasSetup) {
+        return `已为${person}完成入职电脑准备及基础环境配置，并同步留存设备处理时间及记录。`;
+      }
+
+      if (person && isOnboarding) {
+        return `已为${person}完成入职电脑准备，并同步留存设备准备时间及相关记录。`;
+      }
+
+      if (person && hasSetup) {
+        return `已为${person}完成办公电脑安装配置，并同步记录处理时间及相关情况。`;
+      }
+
+      if (person && hasDelivery) {
+        return `已为${person}完成办公设备发放，并同步留存发放时间及相关记录。`;
+      }
+
+      if (person) {
+        return `已为${person}完成办公设备准备，并同步记录处理时间及相关情况。`;
+      }
+
+      if (isOnboarding && hasSetup) {
+        return '已完成入职电脑准备及基础环境配置，并同步留存设备处理时间及相关记录。';
+      }
+
+      if (isOnboarding) {
+        return '已完成入职电脑准备，并同步留存设备准备时间及相关记录。';
+      }
+
+      if (hasSetup) {
+        return '已完成办公电脑安装配置，并同步记录处理时间及相关情况。';
+      }
+
+      if (hasDelivery) {
+        return '已完成办公设备发放，并同步留存发放时间及相关记录。';
+      }
+
+      return '已完成办公设备准备，并同步记录处理时间及相关情况。';
+    }
+
+    function buildAdminSentence(text) {
+      const cleaned = cleanText(text);
+
+      const permissionMatch = cleaned.match(/(?:给|帮|为)?(.{0,12}?)(开权限|权限开通|开账号|账号开通|开邮箱|邮箱开通)/);
+      if (permissionMatch) {
+        const person = normalizePerson(permissionMatch[1]);
+        const action = permissionMatch[2];
+
+        if (/权限/.test(action)) {
+          return person
+            ? `已为${person}完成相关系统权限开通，并同步留存开通时间及处理记录。`
+            : '已完成相关系统权限开通，并同步留存开通时间及处理记录。';
+        }
+
+        if (/账号/.test(action)) {
+          return person
+            ? `已为${person}完成相关系统账号开通，并同步记录开通时间及处理情况。`
+            : '已完成相关系统账号开通，并同步记录开通时间及处理情况。';
+        }
+
+        if (/邮箱/.test(action)) {
+          return person
+            ? `已为${person}完成工作邮箱开通，并同步留存开通时间及处理记录。`
+            : '已完成工作邮箱开通，并同步留存开通时间及处理记录。';
+        }
+      }
+
+      const accessMatch = cleaned.match(/(?:给|帮|为)?(.{0,12}?)(领物资|发工牌|办门禁|门禁办理|门禁开通)/);
+      if (accessMatch) {
+        const person = normalizePerson(accessMatch[1]);
+        const action = accessMatch[2];
+
+        if (/物资/.test(action)) {
+          return person
+            ? `已为${person}完成办公物资领取发放，并同步留存领取时间及相关记录。`
+            : '已完成办公物资领取发放，并同步留存领取时间及相关记录。';
+        }
+
+        if (/工牌/.test(action)) {
+          return person
+            ? `已为${person}完成工牌发放，并同步记录发放时间及处理情况。`
+            : '已完成工牌发放，并同步记录发放时间及处理情况。';
+        }
+
+        if (/门禁/.test(action)) {
+          return person
+            ? `已为${person}完成门禁办理开通，并同步留存办理时间及相关记录。`
+            : '已完成门禁办理开通，并同步留存办理时间及相关记录。';
+        }
+      }
+
+      const hrMatch = cleaned.match(/(?:给|帮|为)?(.{0,12}?)(约面试|通知入职|收资料)/);
+      if (hrMatch) {
+        const person = normalizePerson(hrMatch[1]);
+        const action = hrMatch[2];
+
+        if (/面试/.test(action)) {
+          return person
+            ? `已为${person}完成面试邀约安排，并同步记录通知时间及相关情况。`
+            : '已完成面试邀约安排，并同步记录通知时间及相关情况。';
+        }
+
+        if (/通知入职/.test(action)) {
+          return person
+            ? `已向${person}完成入职通知，并同步留存通知时间及相关记录。`
+            : '已完成入职通知，并同步留存通知时间及相关记录。';
+        }
+
+        if (/收资料/.test(action)) {
+          return person
+            ? `已完成${person}相关资料收取，并同步记录接收时间及处理情况。`
+            : '已完成相关资料收取，并同步记录接收时间及处理情况。';
+        }
+      }
+
+      return null;
+    }
+
     function buildSentence(text) {
       const cleaned = cleanText(text);
+      const equipmentSentence = buildEquipmentSentence(cleaned);
+      if (equipmentSentence) {
+        return equipmentSentence;
+      }
+
+      const adminSentence = buildAdminSentence(cleaned);
+      if (adminSentence) {
+        return adminSentence;
+      }
+
       const parsed = splitTargetAndAction(cleaned);
 
       if (!parsed) {
